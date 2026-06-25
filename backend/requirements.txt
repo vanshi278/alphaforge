@@ -1,0 +1,27 @@
+# ---- Web / async API ----
+fastapi
+uvicorn[standard]
+websockets
+python-dotenv
+
+# ---- Data / storage ----
+pandas
+numpy
+psycopg2-binary
+redis
+sortedcontainers
+
+# ---- Quant / scientific ----
+scipy
+statsmodels
+scikit-learn
+cvxpy
+
+# ---- ML / forecasting (added in Phase 4) ----
+# lightgbm
+# torch
+# shap
+# alphalens-reloaded
+
+# ---- Dev / test ----
+pytest

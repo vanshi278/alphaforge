@@ -1,0 +1,72 @@
+# AlphaForge — local infrastructure.
+#   docker compose up -d            # bring up DB + Redis + backend
+#   docker compose up -d timescaledb redis   # just the data services
+#
+# Works with zero config: sensible defaults are baked in below. Create a .env
+# (cp .env.example .env) only when you need to override creds or add broker keys.
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: alphaforge-timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alphaforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alphaforge}
+      POSTGRES_DB: ${POSTGRES_DB:-alphaforge}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alphaforge} -d ${POSTGRES_DB:-alphaforge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    container_name: alphaforge-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: alphaforge-backend
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: timescaledb
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-alphaforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alphaforge}
+      POSTGRES_DB: ${POSTGRES_DB:-alphaforge}
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: ${APP_ENV:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Source-mounted for live reload while developing.
+    volumes:
+      - ./backend:/app
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+volumes:
+  pgdata:
+  redisdata:
