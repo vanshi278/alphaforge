@@ -23,8 +23,12 @@ class SignalEvent:
     type: ClassVar[str] = "SIGNAL"
     symbol: str
     time: datetime
-    signal: str           # "LONG" | "EXIT" | "SHORT"
+    signal: str                      # "LONG" | "EXIT" | "SHORT" | "TARGET"
     strength: float = 1.0
+    # When set, the portfolio rebalances this symbol to this signed fraction of
+    # equity (e.g. +0.5 long, -0.5 short, 0 flat). Used by the long/short and
+    # pairs strategies; the discrete signals above cover the simple ones.
+    target_pct: Optional[float] = None
 
 
 @dataclass

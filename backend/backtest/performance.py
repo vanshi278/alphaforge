@@ -45,6 +45,16 @@ def compute_metrics(equity_df: pd.DataFrame, periods_per_year: int = TRADING_DAY
     }
 
 
+def turnover(trades, equity_df: pd.DataFrame) -> float:
+    """Total traded notional / mean equity — a unitless measure of how much the
+    strategy trades (buy & hold ~ 1, an active strategy is many multiples)."""
+    if not trades or equity_df.empty:
+        return 0.0
+    traded = sum(t.quantity * t.fill_price for t in trades)
+    mean_equity = float(equity_df["total"].mean())
+    return traded / mean_equity if mean_equity else 0.0
+
+
 def format_metrics(metrics: dict) -> str:
     if not metrics:
         return "(no metrics — empty equity curve)"
