@@ -9,6 +9,7 @@
 - **✅ Phase 3 — Alpha / Strategy module:** short-selling + target-weight rebalancing, pairs trading on cointegrated spreads (Engle-Granger), cross-sectional long/short momentum, an inventory-managed market-making sim, and a strategy comparison report.
 - **✅ Phase 4 — ML / Forecasting:** causal feature engineering, a forward-return **rank** target, **walk-forward** cross-validation, LightGBM (sklearn fallback) vs a momentum baseline, an honest **Information Coefficient** report (mean IC ≈ +0.047 out-of-sample), SHAP attribution, and the ML score backtested as a dollar-neutral long/short.
 - **✅ Phase 5 — Execution + LOB simulator:** a limit-order-book with price-time priority and O(1) cancels, a matching engine, Poisson order flow, a Kyle-λ impact model, **Almgren-Chriss** vs TWAP/VWAP with an implementation-shortfall comparison (AC cut timing risk ~28% at +2.4 bps cost), swapped into the backtester as size-dependent impact fills.
+- **✅ Phase 6 — Risk Engine:** 99% 1-day **VaR/CVaR** three ways (historical, parametric, Monte-Carlo), a **Kupiec** exception backtest (model not rejected), pre-trade position/sector/gross **limit checks** (resize or block), and a drawdown **kill switch** that flattens the book.
 
 ---
 
@@ -248,6 +249,26 @@ exposed to price drift. The same LOB-derived impact model is swapped into the
 backtester via `run_backtest --execution impact`. See
 [backend/execution/README.md](backend/execution/README.md).
 
+## Risk engine (Phase 6)
+
+```bash
+cd backend && python -m risk.run_risk
+```
+
+99% 1-day VaR / CVaR on an equal-weight 5-name portfolio ($1M, 2018–2024):
+
+| Method | 99% VaR | 99% CVaR |
+|--------|--------:|---------:|
+| Historical | $34,366 | $54,955 |
+| Parametric | $28,269 | $32,517 |
+| Monte-Carlo | $28,495 | $32,747 |
+
+The three agree in ballpark, but historical VaR runs higher — real returns have
+**fat tails** the Gaussian methods understate. The **Kupiec** backtest passes (15
+breaches vs 12.3 expected, p = 0.45), pre-trade **limits** resize a 290%-of-equity
+order down to the 20% cap, and the **kill switch** trips at −20.4% drawdown and
+flattens the book. See [backend/risk/README.md](backend/risk/README.md).
+
 ## Build roadmap (progress)
 
 - [x] **Phase 0 — Setup & Foundations** · repo skeleton, env, Docker (TimescaleDB + Redis), runnable FastAPI health check
@@ -256,7 +277,7 @@ backtester via `run_backtest --execution impact`. See
 - [x] **Phase 3 — Alpha / Strategy** · pairs/cointegration, cross-sectional momentum, market making, short-selling, comparison report
 - [x] **Phase 4 — ML / Forecasting** · causal features, rank target, walk-forward CV, LightGBM/sklearn vs momentum, IC report, SHAP, ML long/short
 - [x] **Phase 5 — Execution + LOB** · order book, matching engine, Poisson flow, impact model, Almgren-Chriss vs TWAP/VWAP, implementation shortfall, swapped into the backtester
-- [ ] **Phase 6 — Risk Engine** · VaR/CVaR, Kupiec test, limits, drawdown kill switch
+- [x] **Phase 6 — Risk Engine** · VaR/CVaR (3 methods), Kupiec backtest, position/sector/gross limits, drawdown kill switch
 - [ ] **Phase 7 — React Dashboard** · live charts, depth ladder, P&L, backtest runner, risk panel
 - [ ] **Phase 8 — Polish** · results-led README, one-command spin-up, tests, write-up
 
