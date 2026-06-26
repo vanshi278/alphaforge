@@ -20,7 +20,7 @@ from backtest.engine import Backtest
 from backtest.execution import SimulatedExecutionHandler
 from backtest.performance import compute_metrics, format_metrics
 from backtest.portfolio import Portfolio
-from strategies import BuyAndHold, MACrossover
+from strategies import BuyAndHold, CrossSectionalMomentum, MACrossover, PairsTradingStrategy
 
 RESULTS_DIR = Path(__file__).resolve().parents[2] / "results"
 
@@ -46,12 +46,24 @@ def _load_bars(symbols, start, end, interval, source):
     return bars
 
 
-def _build_strategy(name, data, symbols, short, long):
+def _build_strategy(args, data, symbols):
+    name = args.strategy
     if name == "buyhold":
         return BuyAndHold(data, symbols)
     if name == "ma":
-        return MACrossover(data, symbols, short_window=short, long_window=long)
-    raise ValueError(f"unknown strategy: {name} (choose buyhold|ma)")
+        return MACrossover(data, symbols, short_window=args.short, long_window=args.long)
+    if name == "pairs":
+        if len(symbols) != 2:
+            raise ValueError("pairs needs exactly two --symbols, e.g. TCS,INFY")
+        return PairsTradingStrategy(
+            data, symbols[0], symbols[1],
+            lookback=args.lookback, entry_z=args.entry_z, exit_z=args.exit_z,
+        )
+    if name == "crosssec":
+        return CrossSectionalMomentum(
+            data, symbols, lookback=args.lookback, quantile=args.quantile,
+        )
+    raise ValueError(f"unknown strategy: {name}")
 
 
 def _save_outputs(equity_df, label):
@@ -86,9 +98,13 @@ def _save_outputs(equity_df, label):
 def main() -> None:
     p = argparse.ArgumentParser(description="AlphaForge event-driven backtest")
     p.add_argument("--symbols", default="RELIANCE", help="comma-separated, e.g. RELIANCE,TCS")
-    p.add_argument("--strategy", default="buyhold", choices=["buyhold", "ma"])
+    p.add_argument("--strategy", default="buyhold", choices=["buyhold", "ma", "pairs", "crosssec"])
     p.add_argument("--short", type=int, default=20)
     p.add_argument("--long", type=int, default=50)
+    p.add_argument("--lookback", type=int, default=60, help="pairs/crosssec lookback (try 126 for crosssec)")
+    p.add_argument("--entry-z", type=float, default=2.0, dest="entry_z")
+    p.add_argument("--exit-z", type=float, default=0.5, dest="exit_z")
+    p.add_argument("--quantile", type=float, default=0.3, help="crosssec long/short tail fraction")
     p.add_argument("--start", default="2018-01-01")
     p.add_argument("--end", default="2024-01-01")
     p.add_argument("--interval", default="1d")
@@ -105,7 +121,7 @@ def main() -> None:
     symbols = list(bars)
 
     data = DataHandler(bars, symbols)
-    strategy = _build_strategy(args.strategy, data, symbols, args.short, args.long)
+    strategy = _build_strategy(args, data, symbols)
     portfolio = Portfolio(data, symbols, initial_capital=args.capital)
     execution = SimulatedExecutionHandler(data)
 

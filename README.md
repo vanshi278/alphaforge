@@ -6,6 +6,7 @@
 - **✅ Phase 0 — Foundations:** repo skeleton, Dockerized TimescaleDB + Redis, runnable FastAPI with live health checks.
 - **✅ Phase 1 — Data Layer:** historical loader (NSE equities via yfinance), TimescaleDB read/write, Redis pub/sub bus, and 3 concurrent feeds normalized into one tick format. Live broker WebSocket scaffolded (activate with API keys).
 - **✅ Phase 2 — Event-Driven Backtester:** single-queue event loop with **proven lookahead-bias protection**, next-open fills (slippage + commission), portfolio accounting, buy & hold + MA-crossover strategies, and equity-curve metrics (Sharpe, CAGR, max drawdown).
+- **✅ Phase 3 — Alpha / Strategy module:** short-selling + target-weight rebalancing, pairs trading on cointegrated spreads (Engle-Granger), cross-sectional long/short momentum, an inventory-managed market-making sim, and a strategy comparison report.
 
 ---
 
@@ -179,12 +180,34 @@ fills), not to manufacture a flattering number. See
 [backend/backtest/README.md](backend/backtest/README.md) for how lookahead bias
 is structurally prevented.
 
+## Strategy comparison (Phase 3)
+
+```bash
+cd backend && python -m backtest.compare
+```
+
+All strategies run through the same engine over 2018–2024 (each on its natural
+universe), ranked on return / risk / turnover:
+
+| Strategy | Total return | CAGR | Sharpe | Max drawdown | Turnover | Trades |
+|----------|-------------:|-----:|-------:|-------------:|---------:|-------:|
+| Buy & hold (RELIANCE) | 207.5% | 21.1% | 0.81 | −43.8% | 0.5 | 1 |
+| MA 20/50 (RELIANCE) | 53.8% | 7.6% | 0.49 | −42.0% | 37.7 | 39 |
+| Pairs TCS/INFY | 12.8% | 2.1% | 0.35 | **−18.2%** | 71.2 | 140 |
+| X-sec momentum (8-name basket) | −21.6% | −4.1% | −0.27 | −34.7% | 48.3 | 319 |
+
+Honest readout: buy & hold wins the bull market outright; the market-neutral
+**pairs** book has by far the shallowest drawdown (−18% vs −44%), which is the
+point of a hedged strategy; and naive cross-sectional momentum on an 8-name
+basket *loses* — real cross-sectional momentum needs a Nifty-500-scale universe,
+not eight names. The framework's job is to surface that truthfully.
+
 ## Build roadmap (progress)
 
 - [x] **Phase 0 — Setup & Foundations** · repo skeleton, env, Docker (TimescaleDB + Redis), runnable FastAPI health check
 - [x] **Phase 1 — Data Layer** · historical loader (yfinance/NSE), TimescaleDB I/O, Redis pub/sub bus, 3 concurrent normalized feeds · *live broker WebSocket scaffolded, pending API keys*
 - [x] **Phase 2 — Event-Driven Backtester** · single-queue loop, no-lookahead replay handler, next-open fills, portfolio, buy&hold + MA strategies, equity-curve metrics
-- [ ] **Phase 3 — Alpha / Strategy** · base class, mean reversion, cross-sectional momentum, market making, comparison
+- [x] **Phase 3 — Alpha / Strategy** · pairs/cointegration, cross-sectional momentum, market making, short-selling, comparison report
 - [ ] **Phase 4 — ML / Forecasting** · features, rank target, walk-forward CV, LightGBM, IC report, SHAP
 - [ ] **Phase 5 — Execution + LOB** · order book, matching engine, Almgren-Chriss, TWAP/VWAP, implementation shortfall
 - [ ] **Phase 6 — Risk Engine** · VaR/CVaR, Kupiec test, limits, drawdown kill switch
